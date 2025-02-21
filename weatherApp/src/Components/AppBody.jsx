@@ -1,110 +1,88 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { FaSearch } from "react-icons/fa";
+import Search from "./Search/Search";
+import CurrentWeather from "./current-weather/CurrentWeather";
+import Forecast from "./forecast/Forecast"; // Import the Forecast component
+import Navbar from "./Navbar";
+import { WEATHER_API_KEY, WEATHER_API_URL } from "../api";
+import { MdArrowForward } from "react-icons/md";
 
 const AppBody = () => {
-  const [city, setCity] = useState("");
-  const [weather, setWeather] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [currentWeather, setCurrentWeather] = useState(null);
+  const [forecast, setForecast] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showForecast, setShowForecast] = useState(false); // New state to toggle forecast view
 
-  const handleCityChange = async (event) => {
-    const input = event.target.value;
-    setCity(input);
+  const handleOnSearchChange = async (searchData) => {
+    const [lat, lon] = searchData.value.split(" ");
+    setLoading(true);
+    setError(null);
 
-    if (input.length > 1) {
-      setIsLoading(true);
-      try {
-        const url = `https://api.openweathermap.org/data/2.5/find?q=${input}&type=like&appid=80227594a0b210de78b510d7fada0403`;
-        console.log("Request URL:", url); // Debugging URL
-        const response = await axios.get(url);
-        const { list } = response.data;
-        setSuggestions(list);
-      } catch (error) {
-        console.error(
-          "Error fetching city suggestions",
-          error.response?.data || error.message
-        );
-        setSuggestions([]);
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      setSuggestions([]);
-    }
-  };
-
-  const fetchWeather = async (cityName) => {
     try {
-      const response = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=80227594a0b210de78b510d7fada0403`
-      );
-      setWeather(response.data);
-      setSuggestions([]);
-      console.log(response.data);
+      const [weatherResponse, forecastResponse] = await Promise.all([
+        fetch(
+          `${WEATHER_API_URL}weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`
+        ).then((res) => res.json()),
+        fetch(
+          `${WEATHER_API_URL}forecast?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`
+        ).then((res) => res.json()),
+      ]);
+
+      if (weatherResponse.cod !== 200 || forecastResponse.cod !== "200") {
+        throw new Error(
+          weatherResponse.message || "Failed to fetch weather data"
+        );
+      }
+
+      setCurrentWeather({ city: searchData.label, ...weatherResponse });
+      setForecast({ city: searchData.label, ...forecastResponse });
     } catch (error) {
-      console.error(
-        "Error fetching weather data",
-        error.response?.data || error.message
-      );
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleClick = () => {
-    fetchWeather(city);
-  };
-
-  const handleSuggestionClick = (suggestedCity) => {
-    setCity(suggestedCity.name);
-    fetchWeather(suggestedCity.name);
   };
 
   return (
-    <div className="bg-color3 flex justify-center items-center h-[94vh] w-full">
-      <div className="bg-color5 h-[450px] p-5 rounded-md box-border md:h-[650px] md:w-[650px] lg:w-[950px] lg:px-10">
-        <div className="bg-color1 px-5 py-2 w-auto h-auto rounded-2xl flex items-center gap-3 box-border">
-          <input
-            className="font-medium text-xl px-3 py-2 outline-none text-black w-full rounded-xl"
-            type="text"
-            placeholder="Search"
-            value={city}
-            onChange={handleCityChange}
-          />
-          <button onClick={handleClick}>
-            <FaSearch className="text-2xl" />
-          </button>
-        </div>
-        {isLoading && <p>Loading...</p>}
-        {suggestions.length > 0 && !isLoading && (
-          <ul className="absolute bg-white text-black rounded-lg mt-2 shadow-lg w-1/2">
-            {suggestions.map((suggestedCity) => (
-              <li
-                key={suggestedCity.id}
-                onClick={() => handleSuggestionClick(suggestedCity)}
-                className="px-4 py-2 cursor-pointer text-black hover:bg-gray-200 rounded-lg"
-              >
-                {suggestedCity.name}, {suggestedCity.sys.country}
-              </li>
-            ))}
-          </ul>
-        )}
-        {weather && (
-          <div className="text-white flex flex-col gap-4 items-center h-4/5 justify-end p-3 box-border lg:justify-center md:justify-center">
-            <h3 className="text-3xl font-bold lg:text-5xl">
-              {weather.name}, {weather.sys.country}
-            </h3>
+    <>
+      <Navbar />
+      <div className="flex flex-col items-center w-full h-screen px-4 pt-20 pb-5 text-white bg-gradient-to-b from-blue-900 to-blue-600">
+        {/* Search Box */}
+        <Search onSearchChange={handleOnSearchChange} />
 
-            <h4 className="text-2xl lg:text-3xl font-medium">
-              {(weather.main.temp - 273.15).toFixed(2)}°C
-            </h4>
-            <h5 className="text-3xl lg:text-4xl font-medium">
-              {weather.weather[0].description}
-            </h5>
-            <div className="weather photo"></div>
+        {loading && (
+          <p className="absolute px-6 py-3 text-xl font-bold text-white -translate-x-1/2 -translate-y-1/2 bg-blue-800 rounded-lg shadow-lg top-1/2 left-1/2">
+            Fetching weather data...
+          </p>
+        )}
+
+        {/* Error Message */}
+        {error && <p className="mt-4 text-lg text-red-400">{error}</p>}
+
+        {/* Current Weather */}
+        {!showForecast && currentWeather && (
+          <div className="flex flex-col items-center justify-center w-full max-w-3xl p-6 mt-6 shadow-xl bg-white/10 rounded-xl backdrop-blur-md">
+            <CurrentWeather data={currentWeather} />
           </div>
         )}
+
+        {/* Forecast Button */}
+        {!showForecast && currentWeather && forecast && (
+          <button
+            className="flex items-center justify-center px-6 py-3 mt-6 font-semibold text-white transition-all duration-300 bg-blue-500 rounded-full shadow-lg hover:bg-blue-700"
+            onClick={() => setShowForecast(true)} // Open forecast
+          >
+            View Forecast
+            <MdArrowForward className="ml-2" />
+          </button>
+        )}
+
+        {/* Forecast Section */}
+        {showForecast && forecast && (
+          <Forecast data={forecast} onClose={() => setShowForecast(false)} />
+        )}
       </div>
-    </div>
+    </>
   );
 };
 

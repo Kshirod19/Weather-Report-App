@@ -1,8 +1,20 @@
 *{
   padding: 0;
   margin: 0;
-  color: white;
 }
+
 .navbar{
   font-family: "Fuzzy Bubbles", sans-serif;
 }
+.fontbody{
+  font-family: "Moderustic", sans-serif;
+}
+.glasseffect{
+  /* From https://css.glass */
+background: rgba(165, 164, 164, 0.48);
+border:  1px solid #54416d;
+border-radius: 16px;
+backdrop-filter: blur(20px);
+-webkit-backdrop-filter: blur(20px);
+
+} 
